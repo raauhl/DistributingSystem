@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: core-event-exchange-producer
+  namespace: dapps
+  labels:
+    app: core-event-exchange-producer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: core-event-exchange-producer
+  template:
+    metadata:
+      labels:
+        app: core-event-exchange-producer
+    spec:
+      containers:
+        - image: opsdefaultcr.azurecr.io/core-event-exchange-producer:p-v0.0.25
+          imagePullPolicy: IfNotPresent
+          name: core-event-exchange-producer
+          resources:
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+          volumeMounts:
+            - name: secrets-store01-inline
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
+          env:
+            - name: APP_RELEASEVERSION
+              value: "core-event-exchange-producer@p/v0.0.25"
+            - name: Sentry__Dsn
+              value: "https://92ae9ee04ae649729f0a7936b03a5ae5@o204496.ingest.sentry.io/4505397348335616"
+            - name: Sentry__Debug
+              value: "true"
+            - name: Sentry__TracesSampleRate
+              value: "1"
+            - name: MongoDbSettings__ConnectionString
+              valueFrom:
+                secretKeyRef:
+                  name: dapps-secrets
+                  key: ditio-mongodb-test
+            - name: KafkaSettings__BootstrapServers
+              value: "redpanda-0.redpanda.redpanda.svc.cluster.local.:9093,redpanda-1.redpanda.redpanda.svc.cluster.local.:9093,redpanda-2.redpanda.redpanda.svc.cluster.local.:9093"
+            - name: KafkaSettings__Topics
+              value: "core.event.exchange.CommentDS,core.event.exchange.LikeDS,core.event.exchange.ProjTransDS,core.event.exchange.PostViewModelDS"
+      volumes:
+        - name: secrets-store01-inline
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: "azure-opskv-dapps-msi"
